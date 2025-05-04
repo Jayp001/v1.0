@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Buy PINGUINU Token</title>
+  <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.46.1/lib/index.iife.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #dceefc;
+      color: #003344;
+      text-align: center;
+      padding: 30px;
+    }
+
+    .box {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 25px;
+      border-radius: 12px;
+      width: 290px;
+      margin: 0 auto;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 15px 0;
+    }
+
+    .token-row label {
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .token-row img {
+      width: 20px;
+      height: 20px;
+      margin-left: 6px;
+    }
+
+    input {
+      width: 150px;
+      padding: 6px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #a0cce3;
+    }
+
+    button {
+      background-color: #AA10FA;
+      border: none;
+      padding: 12px 20px;
+      color: white;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #005b8c;
+    }
+
+    #walletStatus {
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Buy PINGUINU Token</h2>
+  <div class="box">
+    <p id="walletStatus">Wallet not connected</p>
+
+    <div class="token-row">
+      <label for="solAmount">
+        SOL <img src="https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png" alt="SOL">
+      </label>
+      <input type="number" id="solAmount" oninput="calculateDino()" placeholder="Enter amount" />
+    </div>
+
+    <div class="token-row">
+      <label>
+        PINGUINU <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="PINGUINU">
+      </label>
+      <input type="text" id="dinoAmount" disabled />
+    </div>
+
+    <button id="actionButton" onclick="handleAction()">Connect Phantom Wallet</button>
+  </div>
+
+  <script>
+    let wallet = null;
+    const dinoPrice = 0.0039; // 1 PINGUINU = 0.0039 SOL
+
+    async function handleAction() {
+      if (!wallet) {
+        await connectWallet();
+      } else {
+        await buyDino();
+      }
+    }
+
+    async function connectWallet() {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const response = await window.solana.connect();
+          wallet = response.publicKey.toString();
+          document.getElementById("walletStatus").innerText =
+            "Connected: " + wallet.slice(0, 6) + "..." + wallet.slice(-4);
+          document.getElementById("actionButton").innerText = "Buy PINGUINU Token";
+        } catch (err) {
+          alert("Wallet connection failed!");
+        }
+      } else {
+        alert("Please install Phantom Wallet.");
+      }
+    }
+
+    function calculateDino() {
+      const sol = parseFloat(document.getElementById("solAmount").value);
+      const dino = !isNaN(sol) ? (sol / dinoPrice).toFixed(2) : "";
+      document.getElementById("dinoAmount").value = dino;
+    }
+
+    async function buyDino() {
+      const sol = parseFloat(document.getElementById("solAmount").value);
+      if (!sol || sol <= 0) {
+        alert("Enter a valid SOL amount.");
+        return;
+      }
+
+      const recipient = "AEHHF8aQ64Y44nLfsfVL9nvdxnQEJf5n9RMbzsivptgz"; // Change to your actual address
+      const connection = new solanaWeb3.Connection(
+        solanaWeb3.clusterApiUrl("mainnet-beta"),
+        "confirmed"
+      );
+
+      const fromPubkey = window.solana.publicKey;
+      const toPubkey = new solanaWeb3.PublicKey(recipient);
+      const lamports = solanaWeb3.LAMPORTS_PER_SOL * sol;
+
+      const transaction = new solanaWeb3.Transaction().add(
+        solanaWeb3.SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports: Math.round(lamports),
+        })
+      );
+
+      try {
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = fromPubkey;
+
+        const signed = await window.solana.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(signature);
+
+        alert(
+          `✅ Payment successful!\n\nCheck transaction:\nhttps://explorer.solana.com/tx/${signature}?cluster=mainnet-beta`
+        );
+      } catch (err) {
+        console.error("Transaction error:", err);
+        alert("❌ Transaction failed or was cancelled.");
+      }
+    }
+  </script>
+</body>
+</html>
